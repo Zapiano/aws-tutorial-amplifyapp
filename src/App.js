@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
-import { API } from 'aws-amplify';
+import { API, graphqlOperation } from 'aws-amplify';
+import { onUpdateNote } from './graphql/subscriptions';
 import { withAuthenticator, AmplifySignOut } from '@aws-amplify/ui-react';
 import { listNotes } from './graphql/queries';
 import { createNote as createNoteMutation, deleteNote as deleteNoteMutation } from './graphql/mutations';
@@ -11,13 +12,29 @@ function App() {
   const [notes, setNotes] = useState([]);
   const [formData, setFormData] = useState(initialFormState);
 
-  useEffect(() => {
+  const onPageRendered = async () => {
+    subscribeNotes();
     fetchNotes();
+  }
+
+  useEffect(() => {
+    onPageRendered();
   }, []);
 
   async function fetchNotes() {
     const apiData = await API.graphql({ query: listNotes });
     setNotes(apiData.data.listNotes.items);
+  }
+
+  const subscribeNotes = async() => {
+    await API.graphql(
+      graphqlOperation(onUpdateNote)
+    ).subscribe({
+      next: value => { 
+        console.log(value) 
+        setNotes(value.data.listNotes.items);
+      }
+    });
   }
 
   async function createNote() {
